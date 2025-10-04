@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import Link from 'next/link';
-import { CheckCircle, Loader2 } from 'lucide-react';
+import { CircleCheck as CheckCircle, Loader as Loader2 } from 'lucide-react';
 
 export default function RegisterPage() {
   const [step, setStep] = useState(1);

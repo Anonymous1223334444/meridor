@@ -15,18 +15,7 @@ import {
   DropdownMenuSeparator, 
   DropdownMenuTrigger 
 } from "@/components/ui/dropdown-menu"
-import { 
-  User, 
-  Settings, 
-  CreditCard, 
-  HelpCircle, 
-  LogOut,
-  Moon,
-  Sun,
-  Activity,
-  Bell,
-  Shield
-} from "lucide-react"
+import { User, Settings, CreditCard, CircleHelp as HelpCircle, LogOut, Moon, Sun, Activity, Bell, Shield } from "lucide-react"
 import { useTheme } from "next-themes"
 
 interface UserProfileDropdownProps {
