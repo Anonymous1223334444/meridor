@@ -45,9 +45,11 @@ export function UserProfileDropdown({
   const { theme, setTheme } = useTheme()
   const [isOpen, setIsOpen] = useState(false)
 
-  const handleLogout = () => {
-    console.log("Logout action triggered")
-    // Add your logout logic here
+  const handleLogout = async () => {
+    const { createPagesBrowserClient } = await import('@supabase/auth-helpers-nextjs')
+    const supabase = createPagesBrowserClient()
+    await supabase.auth.signOut()
+    window.location.href = '/login'
   }
 
   const toggleTheme = () => {

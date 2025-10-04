@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useRouter, usePathname, useSearchParams } from "next/navigation"
+import { useAuth } from "@/contexts/auth-context"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -525,6 +526,7 @@ const progressData = [
 const colors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
 
 export default function Dashboard() {
+  const { user, profile, loading } = useAuth()
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -535,6 +537,20 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
   const [currentDate, setCurrentDate] = useState(new Date())
+
+  useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login')
+    }
+  }, [user, loading, router])
+
+  if (loading || !user || !profile) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    )
+  }
 
   useEffect(() => {
     const tab = searchParams.get("tab")
@@ -2262,11 +2278,11 @@ export default function Dashboard() {
 
               <ThemeToggle />
               <NotificationsPanel />
-              <UserProfileDropdown 
-                userName="Samba SENE"
-                userEmail="samba.sene@paens.sn"
-                userRole="Coordinateur Projet"
-                avatarSrc="/african-man-professional.png"
+              <UserProfileDropdown
+                userName={profile.full_name || user.email || "User"}
+                userEmail={user.email || ""}
+                userRole={profile.role === 'admin' ? "Administrator" : "User"}
+                avatarSrc={profile.avatar_url || "/placeholder-user.jpg"}
               />
             </div>
           </div>

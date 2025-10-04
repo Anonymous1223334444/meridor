@@ -2,24 +2,40 @@
 
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/auth-context';
-import { useRouter, usePathname, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { AdminUserTable } from '@/components/admin-user-table';
-import { ModernSidebar } from '@/components/modern-sidebar';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { UserProfileDropdown } from '@/components/user-profile-dropdown';
-import { Users, UserPlus, Archive, Trash2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/lib/supabase';
-import { toast } from '@/hooks/use-toast';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Users, Database } from 'lucide-react';
+
+interface UserProfile {
+  id: string;
+  email: string;
+  full_name: string | null;
+  role: string;
+  created_at: string;
+}
+
+interface WebsiteStat {
+  id: string;
+  metric_name: string;
+  metric_value: number;
+  metric_type: string;
+  description: string | null;
+  updated_at: string;
+}
 
 export default function AdminPage() {
   const { user, profile, loading, isAdmin } = useAuth();
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'users');
-  const [totalUsers, setTotalUsers] = useState(0);
+  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [stats, setStats] = useState<WebsiteStat[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
     if (!loading && (!user || !isAdmin)) {
@@ -28,19 +44,27 @@ export default function AdminPage() {
   }, [user, isAdmin, loading, router]);
 
   useEffect(() => {
-    loadStats();
-  }, []);
+    if (user && isAdmin) {
+      loadData();
+    }
+  }, [user, isAdmin]);
 
-  const loadStats = async () => {
-    const { count } = await supabase
+  const loadData = async () => {
+    setLoadingData(true);
+
+    const { data: usersData } = await supabase
       .from('user_profiles')
-      .select('*', { count: 'exact', head: true });
-    setTotalUsers(count || 0);
-  };
+      .select('*')
+      .order('created_at', { ascending: false });
 
-  const handleSidebarNavigation = (tab: string) => {
-    router.push(`${pathname}?tab=${tab}`);
-    setActiveTab(tab);
+    const { data: statsData } = await supabase
+      .from('website_stats')
+      .select('*')
+      .order('metric_name');
+
+    setUsers(usersData || []);
+    setStats(statsData || []);
+    setLoadingData(false);
   };
 
   if (loading || !user || !isAdmin) {
@@ -52,86 +76,161 @@ export default function AdminPage() {
   }
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50 dark:bg-gray-900">
-      <ModernSidebar activeTab={activeTab} onTabChange={handleSidebarNavigation} />
-
-      <div className="flex-1 overflow-auto">
-        <header className="sticky top-0 z-10 backdrop-blur-md bg-white/80 dark:bg-gray-900/80 border-b border-gray-200 dark:border-gray-800">
-          <div className="flex items-center justify-between px-6 py-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                User Management
-              </h1>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                Manage all users in the system
-              </p>
-            </div>
-            <div className="flex items-center space-x-4">
-              <ThemeToggle />
-              <UserProfileDropdown />
-            </div>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <header className="sticky top-0 z-10 backdrop-blur-md bg-white/80 dark:bg-gray-900/80 border-b border-gray-200 dark:border-gray-800">
+        <div className="flex items-center justify-between px-6 py-4">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+              Admin Dashboard
+            </h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              Manage users and website statistics
+            </p>
           </div>
-        </header>
-
-        <main className="p-6 space-y-6">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <h2 className="text-xl font-semibold">
-                All Users: {totalUsers.toLocaleString()}
-              </h2>
-              <span className="text-sm text-gray-500">
-                Projects: 884
-              </span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Button variant="outline">Suspend all</Button>
-              <Button variant="outline">Archive all</Button>
-              <Button variant="destructive">Delete all</Button>
-              <Button>
-                <UserPlus className="w-4 h-4 mr-2" />
-                Add new user
-              </Button>
-            </div>
+          <div className="flex items-center space-x-4">
+            <ThemeToggle />
+            <UserProfileDropdown
+              userName={profile?.full_name || user.email || "Admin"}
+              userEmail={user.email || ""}
+              userRole="Administrator"
+              avatarSrc={profile?.avatar_url || "/placeholder-user.jpg"}
+            />
           </div>
+        </div>
+      </header>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Users List</CardTitle>
-              <CardDescription>
-                View and manage all registered users
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <AdminUserTable />
-            </CardContent>
-          </Card>
+      <main className="p-6">
+        <Tabs defaultValue="users" className="space-y-6">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="users" className="flex items-center gap-2">
+              <Users className="w-4 h-4" />
+              Users
+            </TabsTrigger>
+            <TabsTrigger value="stats" className="flex items-center gap-2">
+              <Database className="w-4 h-4" />
+              Website Stats
+            </TabsTrigger>
+          </TabsList>
 
-          <div className="flex items-center justify-between text-sm text-gray-500">
-            <span>Rows per page: 10</span>
-            <div className="flex items-center space-x-4">
-              <span>1-10 of 100</span>
-              <div className="flex space-x-2">
-                <Button variant="outline" size="icon">
-                  1
-                </Button>
-                <Button variant="outline" size="icon">
-                  2
-                </Button>
-                <Button variant="outline" size="icon">
-                  3
-                </Button>
-                <span>...</span>
-                <Button variant="outline" size="icon">
-                  100
-                </Button>
-                <Button variant="outline" size="icon">
-                  →
-                </Button>
-              </div>
-            </div>
-          </div>
-        </main>
-      </div>
+          <TabsContent value="users" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>All Users</CardTitle>
+                <CardDescription>
+                  View and manage all registered users ({users.length} total)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loadingData ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                  </div>
+                ) : (
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Email</TableHead>
+                          <TableHead>Role</TableHead>
+                          <TableHead>Joined</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {users.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={4} className="text-center py-8 text-gray-500">
+                              No users found
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          users.map((user) => (
+                            <TableRow key={user.id}>
+                              <TableCell className="font-medium">
+                                {user.full_name || 'N/A'}
+                              </TableCell>
+                              <TableCell>{user.email}</TableCell>
+                              <TableCell>
+                                <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
+                                  {user.role}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {new Date(user.created_at).toLocaleDateString()}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="stats" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>Website Statistics</CardTitle>
+                <CardDescription>
+                  Overview of all website metrics and analytics ({stats.length} metrics)
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                {loadingData ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-blue-500"></div>
+                  </div>
+                ) : (
+                  <div className="rounded-md border">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Metric Name</TableHead>
+                          <TableHead>Value</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Last Updated</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {stats.length === 0 ? (
+                          <TableRow>
+                            <TableCell colSpan={5} className="text-center py-8 text-gray-500">
+                              No statistics found
+                            </TableCell>
+                          </TableRow>
+                        ) : (
+                          stats.map((stat) => (
+                            <TableRow key={stat.id}>
+                              <TableCell className="font-medium">
+                                {stat.metric_name}
+                              </TableCell>
+                              <TableCell className="text-lg font-semibold">
+                                {stat.metric_value.toLocaleString()}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline">{stat.metric_type}</Badge>
+                              </TableCell>
+                              <TableCell className="max-w-md truncate">
+                                {stat.description || 'N/A'}
+                              </TableCell>
+                              <TableCell>
+                                {new Date(stat.updated_at).toLocaleDateString()}
+                              </TableCell>
+                            </TableRow>
+                          ))
+                        )}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+      </main>
     </div>
   );
 }
